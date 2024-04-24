@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import './PointingRoom.css';
 
+const POINTS = ['0', '1', '2', '3', '5', '8', '13', '21', '100', '?'];
+
 const PointingRoom = ({
   myId,
   room,
@@ -13,6 +15,7 @@ const PointingRoom = ({
 }) => {
   const [userName, setUserName] = useState('');
   const [roomPath, setRoomPath] = useState(null);
+  const [isCopied, setIsCopied] = useState(false);
 
   useEffect(() => {
     const pathName = window.location.pathname;
@@ -52,50 +55,83 @@ const PointingRoom = ({
     clearPoints();
   };
 
+  const onLinkClick = (e) => {
+    e.preventDefault();
+    navigator.clipboard.writeText(roomPath);
+    setIsCopied(true);
+  };
+
+  useEffect(() => {
+    if (isCopied) {
+      const timer = setTimeout(() => {
+        setIsCopied(false);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [isCopied]);
+
   const nameFormJSX = !myId ? (
     <form onSubmit={onSubmitName}>
       <input
+        className="nameInput"
         type="text"
         value={userName}
         onChange={(e) => setUserName(e.target.value)}
       />
-      <button type="submit">Add Name</button>
+      <button className="nameSubmitButton" type="submit">
+        Add Name
+      </button>
     </form>
   ) : null;
-  const roomPathJSX = roomPath ? <p>Room Link: {roomPath}</p> : null;
-  const pointButtonsJSX = myId ? (
-    <div>
-      <input type="button" onClick={onPointsClick} value={'0'} />
-      <input type="button" onClick={onPointsClick} value={'1'} />
-      <input type="button" onClick={onPointsClick} value={'2'} />
-      <input type="button" onClick={onPointsClick} value={'3'} />
-      <input type="button" onClick={onPointsClick} value={'5'} />
-      <input type="button" onClick={onPointsClick} value={'8'} />
-      <input type="button" onClick={onPointsClick} value={'13'} />
-      <input type="button" onClick={onPointsClick} value={'21'} />
-      <input type="button" onClick={onPointsClick} value={'100'} />
-      <input type="button" onClick={onPointsClick} value={'?'} />
+  const roomPathJSX = roomPath ? (
+    <div className="roomLink">
+      <span>Room Link:</span>
+      <span className="link" onClick={onLinkClick}>
+        {roomPath}
+      </span>
+      {isCopied ? <div className="copied">Link Copied!!</div> : null}
     </div>
   ) : null;
-  const playersListJSX = myId
-    ? room?.users.map((user) => (
-        <div key={user.userId}>
-          <span>{user.points ? '[v]' : '[]'}</span>
-          <span>{user.name}</span>
-          <span>{room?.isRevealed ? user.points : 'X'}</span>
+  const pointButtonsJSX = myId ? (
+    <div className="pointsButtonWrapper">
+      {POINTS.map((point, idx) => (
+        <input
+          key={`point-${idx}`}
+          className="pointsButton"
+          type="button"
+          onClick={onPointsClick}
+          value={point}
+        />
+      ))}
+    </div>
+  ) : null;
+  const playersListJSX = myId ? (
+    <div className="userListWrapper">
+      {room?.users.map((user) => (
+        <div key={user.userId} className="userList">
+          <span className="userPointed">{user.points ? '[v]' : '[]'}</span>
+          <span className="userName">{user.name}</span>
+          <span className="userPoints">
+            {room?.isRevealed ? user.points : 'X'}
+          </span>
         </div>
-      ))
-    : null;
+      ))}
+    </div>
+  ) : null;
   const actionButtonsJSx = myId ? (
-    <div>
-      <button onClick={onReveal}>Reveal</button>
-      <button onClick={onReset}>Reset</button>
+    <div className="actionButtonWrapper">
+      <button className="actionButton" onClick={onReveal}>
+        Reveal
+      </button>
+      <button className="actionButton" onClick={onReset}>
+        Reset
+      </button>
     </div>
   ) : null;
 
   return (
-    <div className="PointingRoom">
-      <h1>Pointing Room</h1>
+    <div className="pointingRoom">
+      <h1>RS Poker</h1>
       {nameFormJSX}
       {playersListJSX}
       {pointButtonsJSX}

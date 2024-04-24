@@ -4,9 +4,12 @@ import './Home.css';
 
 const Home = ({ createRoom }) => {
   return (
-    <div className="Home">
-      <h1>Title</h1>
-      <button onClick={createRoom}>Create a room</button>
+    <div className="home">
+      <h1>RS Dev Tools</h1>
+      <p>Planning Poker Room</p>
+      <button className="pokerCreateButton" onClick={createRoom}>
+        Create a room
+      </button>
     </div>
   );
 };
