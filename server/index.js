@@ -33,6 +33,7 @@ io.on('connection', (socket) => {
   socket.on('create-room', () => {
     const room = roomEvents.createRoom();
     socket.join(room.roomId);
+
     logger.info(`Room created: ${room.roomId}`);
     io.to(room.roomId).emit('room-update', room);
   });
@@ -50,24 +51,35 @@ io.on('connection', (socket) => {
       points: undefined,
     };
     const updatedRoom = roomEvents.joinRoom(roomId, user);
-    logger.info(`User ${user.name} joined room ${roomId}`);
 
+    logger.info(`User ${user.name}, ${user.userId} joined room ${roomId}`);
     socket.emit('my-info', user);
     io.to(roomId).emit('room-update', updatedRoom);
   });
 
-  socket.on('leave-room', (roomId) => {
+  socket.on('leave-room', (roomId, userId) => {
     const room = roomEvents.findRoom(roomId);
     if (!room) {
       return socket.emit('error', { error: 'Room not found' });
     }
 
-    socket.leave(roomId);
-    const updatedRoom = roomEvents.leaveRoom(roomId, socket.id);
-    logger.info(`User ${user.name} left room ${roomId}`);
+    const updatedRoom = roomEvents.leaveRoom(roomId, userId);
 
     socket.emit('my-info', null);
     io.to(roomId).emit('room-update', updatedRoom);
+
+    socket.leave(roomId);
+    logger.info(`User ${userId} left room ${roomId}`);
+  });
+
+  socket.on('find-room', (roomId) => {
+    const room = roomEvents.findRoom(roomId);
+    if (!room) {
+      return socket.emit('error', { error: 'Room not found' });
+    }
+
+    logger.info(`Room found: ${roomId}`);
+    socket.emit('room-update', room);
   });
 
   socket.on('update-points', (roomId, userId, points) => {
@@ -77,7 +89,8 @@ io.on('connection', (socket) => {
     }
 
     const updatedRoom = roomEvents.updatePoints(roomId, userId, points);
-    logger.info(`User ${user.name} updated points to ${points} in ${roomId}`);
+
+    logger.info(`User ${userId} updated points to ${points} in ${roomId}`);
     io.to(roomId).emit('room-update', updatedRoom);
   });
 
@@ -88,6 +101,7 @@ io.on('connection', (socket) => {
     }
 
     const updatedRoom = roomEvents.revealPoints(roomId);
+
     logger.info(`Points revealed in room ${roomId}`);
     io.to(roomId).emit('room-update', updatedRoom);
   });
@@ -99,6 +113,7 @@ io.on('connection', (socket) => {
     }
 
     const updatedRoom = roomEvents.clearPoints(roomId);
+
     logger.info(`Points cleared in room ${roomId}`);
     io.to(roomId).emit('room-update', updatedRoom);
   });

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { useNavigate } from 'react-router-dom';
 
@@ -19,16 +19,29 @@ const App = () => {
     };
 
     const onDisconnect = () => {
+      socket.emit('leave-room', room?.roomId, myId);
+      setMyId(null);
+      setRoom(null);
       setIsSocketOpen(false);
     };
 
     const onRoomUpdate = (room) => {
+      if (!room) {
+        console.error('No Room Data');
+        return;
+      }
+
       console.log('new room data', room);
+
+      sessionStorage.setItem(
+        'room',
+        JSON.stringify({ roomID: room?.roomId, lastActive: Date.now() }),
+      );
       setRoom(room);
     };
 
     const onMyInfo = (info) => {
-      console.log('My info', info);
+      console.log(info);
       setMyId(info?.userId);
     };
 
@@ -59,7 +72,6 @@ const App = () => {
     }
 
     socket.emit('create-room');
-    navigate(`/room/${room?.roomId}`);
   };
 
   const onJoinRoom = (userName) => {
@@ -70,6 +82,48 @@ const App = () => {
 
     socket.emit('join-room', room.roomId, userName);
   };
+
+  const onFindRoom = useCallback(
+    (roomId) => {
+      if (!isSocketOpen || !roomId) {
+        console.log('Socket is not connected');
+        return;
+      }
+
+      socket.emit('find-room', roomId);
+    },
+    [isSocketOpen],
+  );
+
+  const onUpdatePoints = useCallback(
+    (points) => {
+      if (!isSocketOpen || !room?.roomId || !myId) {
+        console.log('Socket is not connected');
+        return;
+      }
+
+      socket.emit('update-points', room.roomId, myId, points);
+    },
+    [isSocketOpen, room?.roomId, myId],
+  );
+
+  const onClearPoints = useCallback(() => {
+    if (!isSocketOpen || !room?.roomId) {
+      console.log('Socket is not connected');
+      return;
+    }
+
+    socket.emit('clear-points', room.roomId);
+  }, [isSocketOpen, room?.roomId]);
+
+  const onRevealPoints = useCallback(() => {
+    if (!isSocketOpen || !room?.roomId) {
+      console.log('Socket is not connected');
+      return;
+    }
+
+    socket.emit('reveal-points', room.roomId);
+  }, [isSocketOpen, room?.roomId]);
 
   useEffect(() => {
     if (room?.roomId) {
@@ -84,7 +138,15 @@ const App = () => {
         <Route
           path="/room/:roomId"
           element={
-            <PointingRoom room={room} joinRoom={onJoinRoom} myId={myId} />
+            <PointingRoom
+              myId={myId}
+              room={room}
+              clearPoints={onClearPoints}
+              findRoom={onFindRoom}
+              joinRoom={onJoinRoom}
+              revealPoints={onRevealPoints}
+              updatePoints={onUpdatePoints}
+            />
           }
         />
         <Route path="*" element={<ErrorPage />} />
