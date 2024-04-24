@@ -70,6 +70,16 @@ const PointingRoom = ({
     }
   }, [isCopied]);
 
+  const getMaxPoint = () => {
+    if (!room?.isRevealed) return;
+
+    const points = room.users.map((user) => user.points);
+    if (points[0] === undefined) return;
+    const isSame = points.every((point) => point === points[0]);
+
+    return isSame ? `Consensus: ${points[0]}` : 'No Consensus';
+  };
+
   const nameFormJSX = !myId ? (
     <form onSubmit={onSubmitName}>
       <input
@@ -83,7 +93,7 @@ const PointingRoom = ({
       </button>
     </form>
   ) : null;
-  const roomPathJSX = roomPath ? (
+  const roomPathJSX = Boolean(roomPath && myId) ? (
     <div className="roomLink">
       <span>Room Link:</span>
       <span className="link" onClick={onLinkClick}>
@@ -128,6 +138,11 @@ const PointingRoom = ({
       </button>
     </div>
   ) : null;
+  const maxPointJSX = Boolean(
+    room?.isRevealed && Boolean(getMaxPoint()) && myId,
+  ) ? (
+    <div className="revealPoint">{getMaxPoint()}</div>
+  ) : null;
 
   return (
     <div className="pointingRoom">
@@ -136,6 +151,7 @@ const PointingRoom = ({
       {playersListJSX}
       {pointButtonsJSX}
       {actionButtonsJSx}
+      {maxPointJSX}
       {roomPathJSX}
     </div>
   );

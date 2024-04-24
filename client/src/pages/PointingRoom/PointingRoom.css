@@ -151,3 +151,16 @@
     background-color: lightgray;
   }
 }
+
+.revealPoint {
+  font-size: 1.5em;
+  margin-right: 20px;
+  border: 1px solid black;
+  border-radius: 5px;
+  padding: 10px;
+  margin: 10px;
+  margin-top: 30px;
+  text-align: center;
+  width: 440px;
+  background-color: whitesmoke;
+}
