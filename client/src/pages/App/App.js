@@ -15,15 +15,21 @@ const App = () => {
 
   useEffect(() => {
     const onConnect = () => {
+      sessionStorage.setItem(
+        'sockets',
+        JSON.stringify({ socketId: socket.id }),
+      );
+
       setIsSocketOpen(true);
+
+      const roomId = JSON.parse(sessionStorage.getItem('room'))?.roomId;
+      const userId = JSON.parse(sessionStorage.getItem('myId'))?.userId;
+      if (!roomId || !userId) return;
+
+      socket.emit('link-new-socket', roomId, userId);
     };
 
-    const onDisconnect = () => {
-      socket.emit('leave-room', room?.roomId, myId);
-      setMyId(null);
-      setRoom(null);
-      setIsSocketOpen(false);
-    };
+    const onDisconnect = () => setIsSocketOpen(false);
 
     const onRoomUpdate = (room) => {
       if (!room) {
@@ -31,19 +37,10 @@ const App = () => {
         return;
       }
 
-      console.log('new room data', room);
-
-      sessionStorage.setItem(
-        'room',
-        JSON.stringify({ roomID: room?.roomId, lastActive: Date.now() }),
-      );
       setRoom(room);
     };
 
-    const onMyInfo = (info) => {
-      console.log(info);
-      setMyId(info?.userId);
-    };
+    const onMyInfo = (info) => setMyId(info?.userId);
 
     const onSocketError = (data) => {
       console.error(data.error);
@@ -65,6 +62,24 @@ const App = () => {
     };
   }, []);
 
+  useEffect(() => {
+    const updateSessionId = myId || window.location.pathname === '/';
+    if (updateSessionId) {
+      sessionStorage.setItem('myId', JSON.stringify({ userId: myId }));
+    }
+  }, [myId]);
+
+  useEffect(() => {
+    const updateSessionRoom = room?.roomId || window.location.pathname === '/';
+    if (updateSessionRoom) {
+      sessionStorage.setItem('room', JSON.stringify({ roomId: room?.roomId }));
+    }
+
+    if (room?.roomId) {
+      navigate(`/room/${room?.roomId}`);
+    }
+  }, [navigate, room?.roomId]);
+
   const onCreateRoom = () => {
     if (!isSocketOpen) {
       console.warn('Socket is not connected');
@@ -74,19 +89,22 @@ const App = () => {
     socket.emit('create-room');
   };
 
-  const onJoinRoom = (userName) => {
-    if (!isSocketOpen || !room?.roomId || !userName) {
-      console.log('Socket is not connected');
-      return;
-    }
+  const onJoinRoom = useCallback(
+    (user) => {
+      if (!isSocketOpen || !room?.roomId || !user) {
+        console.warn('Socket is not connected');
+        return;
+      }
 
-    socket.emit('join-room', room.roomId, userName);
-  };
+      socket.emit('join-room', room.roomId, JSON.stringify(user));
+    },
+    [isSocketOpen, room?.roomId],
+  );
 
   const onFindRoom = useCallback(
     (roomId) => {
       if (!isSocketOpen || !roomId) {
-        console.log('Socket is not connected');
+        console.warn('Socket is not connected');
         return;
       }
 
@@ -98,7 +116,7 @@ const App = () => {
   const onUpdatePoints = useCallback(
     (points) => {
       if (!isSocketOpen || !room?.roomId || !myId) {
-        console.log('Socket is not connected');
+        console.warn('Socket is not connected');
         return;
       }
 
@@ -109,7 +127,7 @@ const App = () => {
 
   const onClearPoints = useCallback(() => {
     if (!isSocketOpen || !room?.roomId) {
-      console.log('Socket is not connected');
+      console.warn('Socket is not connected');
       return;
     }
 
@@ -118,18 +136,12 @@ const App = () => {
 
   const onRevealPoints = useCallback(() => {
     if (!isSocketOpen || !room?.roomId) {
-      console.log('Socket is not connected');
+      console.warn('Socket is not connected');
       return;
     }
 
     socket.emit('reveal-points', room.roomId);
   }, [isSocketOpen, room?.roomId]);
-
-  useEffect(() => {
-    if (room?.roomId) {
-      navigate(`/room/${room.roomId}`);
-    }
-  }, [navigate, room?.roomId]);
 
   return (
     <>
@@ -146,6 +158,7 @@ const App = () => {
               joinRoom={onJoinRoom}
               revealPoints={onRevealPoints}
               updatePoints={onUpdatePoints}
+              setMyId={setMyId}
             />
           }
         />

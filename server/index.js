@@ -28,7 +28,16 @@ const io = new Server(httpServer, {
 });
 
 io.on('connection', (socket) => {
-  logger.info(`User connected: ${socket.id}`);
+  logger.info(`User Socket connected: ${socket.id}`);
+
+  socket.on('link-new-socket', (roomId, userId) => {
+    if (!roomId || !userId) {
+      return socket.emit('error', { error: 'Room ID or User ID not found' });
+    }
+
+    roomEvents.updateUserSocketMap(roomId, userId, socket.id);
+    socket.join(roomId);
+  });
 
   socket.on('create-room', () => {
     const room = roomEvents.createRoom();
@@ -38,38 +47,28 @@ io.on('connection', (socket) => {
     io.to(room.roomId).emit('room-update', room);
   });
 
-  socket.on('join-room', (roomId, userName) => {
+  socket.on('join-room', (roomId, data) => {
     const room = roomEvents.findRoom(roomId);
     if (!room) {
       return socket.emit('error', { error: 'Room not found' });
     }
+
+    const user = JSON.parse(data);
 
     socket.join(roomId);
-    const user = {
-      userId: socket.id,
-      name: userName,
+    const newUser = {
+      userId: user.userId ?? socket.id,
+      name: user.name,
       points: undefined,
     };
-    const updatedRoom = roomEvents.joinRoom(roomId, user);
+    const updatedRoom = roomEvents.joinRoom(roomId, newUser);
+    roomEvents.updateUserSocketMap(roomId, newUser.userId, socket.id);
 
-    logger.info(`User ${user.name}, ${user.userId} joined room ${roomId}`);
-    socket.emit('my-info', user);
+    logger.info(
+      `User ${newUser.name}, ${newUser.userId} joined room ${roomId}`,
+    );
+    socket.emit('my-info', newUser);
     io.to(roomId).emit('room-update', updatedRoom);
-  });
-
-  socket.on('leave-room', (roomId, userId) => {
-    const room = roomEvents.findRoom(roomId);
-    if (!room) {
-      return socket.emit('error', { error: 'Room not found' });
-    }
-
-    const updatedRoom = roomEvents.leaveRoom(roomId, userId);
-
-    socket.emit('my-info', null);
-    io.to(roomId).emit('room-update', updatedRoom);
-
-    socket.leave(roomId);
-    logger.info(`User ${userId} left room ${roomId}`);
   });
 
   socket.on('find-room', (roomId) => {
@@ -116,5 +115,23 @@ io.on('connection', (socket) => {
 
     logger.info(`Points cleared in room ${roomId}`);
     io.to(roomId).emit('room-update', updatedRoom);
+  });
+
+  socket.on('disconnecting', () => {
+    logger.info(`User disconnecting: ${socket.id}`);
+
+    setTimeout(() => {
+      const activeSocketList = Array.from(io.sockets.sockets.keys());
+      const cleanedRooms = roomEvents.cleanUp(activeSocketList);
+
+      for (const roomId in cleanedRooms) {
+        logger.info(`Cleaned room ${roomId}`);
+        io.to(roomId).emit('room-update', cleanedRooms[roomId]);
+      }
+    }, [5000]);
+  });
+
+  socket.on('disconnect', () => {
+    logger.info(`User disconnected: ${socket.id}`);
   });
 });

@@ -9,6 +9,7 @@ const PointingRoom = ({
   joinRoom,
   revealPoints,
   updatePoints,
+  setMyId,
 }) => {
   const [userName, setUserName] = useState('');
   const [roomPath, setRoomPath] = useState(null);
@@ -21,13 +22,19 @@ const PointingRoom = ({
       return console.error('Room ID not found');
     }
 
+    const userId = JSON.parse(sessionStorage.getItem('myId'))?.userId;
     setRoomPath(window.location.href);
+
+    if (userId) {
+      setMyId(userId);
+    }
+
     findRoom(urlRoomId);
-  }, [findRoom]);
+  }, [findRoom, setMyId]);
 
   const onSubmitName = (e) => {
     e.preventDefault();
-    joinRoom(userName);
+    joinRoom({ name: userName, userId: myId });
   };
 
   const onPointsClick = (e) => {
